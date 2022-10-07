@@ -1,47 +1,50 @@
-Задание 2.1:
-(Разберитесь почему все pod в namespace kube-system восстановились после удаления.):
+Домашнее задание 3
 
-pod-ы кроме coredns - static и управляются напрямую kubelet'ом: $ ls -lht /etc/kubernetes/manifests/
+- Выполнена установка кластера kind
+- Применена ReplicaSet для сервиса frontend:
+  kubectl apply -f frontend-replicaset.yaml
 
--rw------- 1 root root 2.4K Oct 3 19:31 etcd.yaml
--rw------- 1 root root 3.6K Oct 3 19:31 kube-apiserver.yaml
--rw------- 1 root root 2.9K Oct 3 19:31 kube-controller-manager.yaml
--rw------- 1 root root 1.5K Oct 3 19:31 kube-scheduler.yaml
+- Вопрос: Руководствуясь материалами лекции опишите произошедшую ситуацию, почему обновление ReplicaSet не повлекло обновление запущенных pod?
 
-coredns описан в деплойменте: kubectl describe deployments coredns -n kube-system
+ReplicaSet controller не рестартует поды, а следит за тем, чтобы объявленное количество подов было запущено в каждый момент времени
 
-Name: coredns
-Namespace: kube-system
-CreationTimestamp: Mon, 03 Oct 2022 22:31:25 +0300
-Labels: k8s-app=kube-dns
-Annotations: deployment.kubernetes.io/revision: 1
-Selector: k8s-app=kube-dns
-Replicas: 1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+ - Создан манифест paymentservice-deployment.yaml. Выполнено обновление и роллбек версий приложения, используя deployment:
+Версия 0.00.1:
+kubectl apply -f paymentservice-deployment.yaml
+kubectl get pods -l app=paymentservice -w
+kubectl get pods -l app=paymentservice -o=jsonpath='{.items[0:3].spec.containers[0].image}'
 
-Pod будет восстановлено автоматически.
+Версия 0.00.2:
+kubectl apply -f paymentservice-deployment.yaml
+kubectl get pods -l app=paymentservice -w
+kubectl get pods -l app=paymentservice -o=jsonpath='{.items[0:3].spec.containers[0].image}'
 
-Задание 2.2.
+Rollback на v0.0.1:
 
-Для выполнения домашней работы необходимо создать Dockerfile, в
-котором будет описан образ:
-Запускающий web-сервер на порту 8000 (можно использовать любой
-способ);
-Отдающий содержимое директории /app внутри контейнера (например,
-если в директории /app лежит файл homework.html , то при запуске
-контейнера данный файл должен быть доступен по URL
-http://localhost:8000/homework.html );
-Работающий с UID 1001
+rollout kubectl rollout undo deployment paymentservice --to-revision=1 | kubectl get rs -l app=paymentservice -w
 
-Созданы dockerfile на базе образа alpine, где установлен пакет nginx.
+- Созданы манифесты для  Blue/Green и Reverse Rolling Update с использованием параметров maxSurge и maxUnavailable
 
-Образ располагается в репозитории https://hub.docker.com/r/oksanazh/hw_web-app
+Blue/Green:
 
-Создан манифест web-pod.yml.
+kubectl apply -f paymentservice-deployment-bg.yaml
+kubectl get pods -l app=frontend -w
 
-Для применения манифеста используется команда kubectl apply -f web-pod.yml
+Reverse Rolling Update:
 
-Запуск приложения проеряется с помощью команды port-forward:
+kubectl apply -f paymentservice-deployment-reverse.yaml
+kubectl get pods -l app=frontend -w
 
-kubectl port-forward --address 0.0.0.0 pod/web 8000:8000
+- Выполнена работа с настройками readinessProbe и livenessProbe
+- Выполнена установка node-exporter на master и worker nodes используя DaemonSet
 
-Для проверки работы приложения перейти по ссылке http://localhost:8000/ (http://localhost:8000/index.html)
+kubectl apply -f node-exporter-daemonset.yaml
+kubectl port-forward node-exporter-mzcfw 9100:9100
+curl localhost:9100/metrics
+
+- Для развертывания Node Exporter на master используется tolerations 
+
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule

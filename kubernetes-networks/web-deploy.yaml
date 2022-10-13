@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      name: web
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: oksanazh/hw_web-app:1.0.0
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: 8000
+          livenessProbe:
+            tcpSocket: { port: 8000 }
+          volumeMounts:
+            - name: app
+              mountPath: /app
+      initContainers:
+        - name: init-index-page
+          image: busybox:1.31.0
+          command: ['sh', '-c', 'wget -O- https://bit.ly/otus-k8s-index-gen | sh']
+          volumeMounts:
+            - name: app
+              mountPath: /app
+      volumes:
+        - name: app
+          emptyDir: {}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 100%

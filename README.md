@@ -1,50 +1,163 @@
-Домашнее задание 3
+Домашнее задание 4
 
-- Выполнена установка кластера kind
-- Применена ReplicaSet для сервиса frontend:
-  kubectl apply -f frontend-replicaset.yaml
+1. В описание манифеста web-pod.yml добавлен readinessProbe:
 
-- Вопрос: Руководствуясь материалами лекции опишите произошедшую ситуацию, почему обновление ReplicaSet не повлекло обновление запущенных pod?
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: 8000
 
-ReplicaSet controller не рестартует поды, а следит за тем, чтобы объявленное количество подов было запущено в каждый момент времени
+Запущен pod:
 
- - Создан манифест paymentservice-deployment.yaml. Выполнено обновление и роллбек версий приложения, используя deployment:
-Версия 0.00.1:
-kubectl apply -f paymentservice-deployment.yaml
-kubectl get pods -l app=paymentservice -w
-kubectl get pods -l app=paymentservice -o=jsonpath='{.items[0:3].spec.containers[0].image}'
+kubectl apply -f web-pod.yaml
 
-Версия 0.00.2:
-kubectl apply -f paymentservice-deployment.yaml
-kubectl get pods -l app=paymentservice -w
-kubectl get pods -l app=paymentservice -o=jsonpath='{.items[0:3].spec.containers[0].image}'
+Проверка статуса pod:
 
-Rollback на v0.0.1:
+kubectl get pods
+NAME   READY   STATUS    RESTARTS   AGE
+web    0/1     Running   0          9s
 
-rollout kubectl rollout undo deployment paymentservice --to-revision=1 | kubectl get rs -l app=paymentservice -w
+Pod не перешёл в состояние Ready т.к. не прошел проверку готовности(указан port - 80 вместо 8000).
 
-- Созданы манифесты для  Blue/Green и Reverse Rolling Update с использованием параметров maxSurge и maxUnavailable
+Добавлен livenessProbe:
 
-Blue/Green:
+livenessProbe:
+    tcpSocket:
+      {port: 8080}
 
-kubectl apply -f paymentservice-deployment-bg.yaml
-kubectl get pods -l app=frontend -w
+2. На основе kuberneted-intro\web-pod.yaml создан Deployment с измененными readinessProbe и кол-вом реплик
 
-Reverse Rolling Update:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      name: web
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: oksanazh/hw_web-app:1.0.0
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: 8000
+          livenessProbe:
+            tcpSocket: { port: 8000 }
 
-kubectl apply -f paymentservice-deployment-reverse.yaml
-kubectl get pods -l app=frontend -w
+Применение манифеста:
 
-- Выполнена работа с настройками readinessProbe и livenessProbe
-- Выполнена установка node-exporter на master и worker nodes используя DaemonSet
+kubectl apply -f web-deploy.yaml
 
-kubectl apply -f node-exporter-daemonset.yaml
-kubectl port-forward node-exporter-mzcfw 9100:9100
-curl localhost:9100/metrics
+Описание deployment:
 
-- Для развертывания Node Exporter на master используется tolerations 
+kubectl describe deploy/web
 
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
-        effect: NoSchedule
+В Condifitions Deployment - Available and Progressing"
+
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+
+В манифест добалвена стратегия развертывания:
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 100%
+
+При использовании различных вариаций значений параметров maxUnavailable и maxSurge можно получить различные стратегии обновления подов:
+Canary  - maxUnavailable: 1 \maxSurge: 0
+Blue-Green - maxUnavailable: 0 \maxSurge: 100%
+удалить все pod и затем создать новые - maxUnavailable: 100% \maxSurge: 0
+
+3. Создадн манифест для Service с типом ClusterIP: 
+
+kubectl apply -f web-svc-cip.yaml
+kubectl get service
+NAME          TYPE           CLUSTER-IP       EXTERNAL-IP    PORT(S)        AGE
+kubernetes    ClusterIP      10.96.0.1        <none>         443/TCP        153m
+web-svc-cip   ClusterIP      10.103.215.124   <none>         80/TCP         94m
+
+Проверен доступ к  ClusterIP
+
+minikube ssh
+curl http://0.103.215.124 /index.html
+ping 0.103.215.124 
+arp -an
+ip addr show
+sudo iptables --list -nv -t nat
+
+4. Установлен IPVS  и настроен minikube для его использования
+5. Установлен MetalLB. Провекра установки:
+
+kubectl --namespace metallb-system get all
+6. Настроен MetalLB с использованием ConfigMap (манифест metallb-config.yaml)
+7. Создан  Service с MetalLB в качетве LoadBalancer (манифест web-svc-lb.yaml)
+
+kubectl --namespace metallb-system logs pod/controller-7696f658c8-bxp7q:
+
+{"caller":"service.go:114","event":"ipAllocated","ip":"172.17.255.1","msg":"IP address assigned by controller","service":"default/web-svc-lb","ts":"2022-10-13T08:25:14.784174051Z"}
+
+IP 172.17.255.1 назначен сервису web-svc-lb
+
+kubectl describe svc web-svc-lb:
+
+IP:                       10.96.125.130
+IPs:                      10.96.125.130
+LoadBalancer Ingress:     172.17.255.1
+
+8. создан маршрут с minikube на хост:
+
+minikube ip
+
+172.17.6.227
+
+ip route add 172.17.255.0/24 via 172.17.6.227
+
+Проверен доступ http://172.17.255.1/index.html
+
+9. Создан ingress
+
+Основной манифест:
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+
+10/ Создан манифест nginx-lb.yaml с конфигурацией балансировщика нагрузки. 
+
+Получен ip адрес
+
+kubectl get svc -n ingress-nginx
+
+NAME                                 TYPE           CLUSTER-IP       EXTERNAL-IP    PORT(S)                      AGE
+ingress-nginx                        LoadBalancer   10.110.207.133   172.17.255.3   80:30964/TCP,443:30271/TCP   86m
+
+10. Создан headless-сервис для веб-приложения (web-svc-headless.yaml)
+
+kubectl apply -f web-svc-headless.yaml
+
+11. Создан манифест web-ingress.yaml 
+
+kubectl describe ingress/web:
+
+Name:             web
+Namespace:        default
+Address:          172.17.255.3
+Default backend:  default-http-backend:80 (<none>)
+Rules:
+Host  Path  Backends
+----  ----  --------
+*
+        /web   web-svc:8000 (172.17.0.7:8000,172.17.0.8:8000,172.17.0.9:8000)

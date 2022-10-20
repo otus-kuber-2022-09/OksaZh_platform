@@ -171,19 +171,19 @@ yes
 
 3.2 Создать Service Account jane в Namespace dev
 
-Создан манифест 02-sa-jane-ken.yaml для создания Service Account jane 
+Создан манифест 02-sa-jane.yaml для создания Service Account jane 
 
 3.3 Дать jane роль admin в рамках Namespace dev
 
-Создан манифест 03-roles-in-namespace.yaml для назначения роли admin Service Account jane
+Создан манифест 03-role-admin-namespace.yaml для назначения роли admin Service Account jane
 
 3.4. Создать Service Account ken в Namespace dev
 
-Создан манифест 02-sa-jane-ken.yaml для создания Service Account ken 
+Создан манифест 04-sa-ken.yaml для создания Service Account ken 
 
 3.5 Дать ken роль view в рамках Namespace dev
 
-Создан манифест 03-roles-in-namespace.yaml для назначения роли view Service Account ken
+Создан манифест 05-role-view-namespace.yaml для назначения роли view Service Account ken
 
 Проверка после применения манифестов:
 

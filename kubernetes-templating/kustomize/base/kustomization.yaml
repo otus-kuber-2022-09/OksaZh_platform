@@ -1,0 +1,5 @@
+commonLabels:
+  app: recommendationservice
+resources:
+- deployment.yaml
+- service.yaml

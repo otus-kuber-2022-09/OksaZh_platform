@@ -45,7 +45,7 @@ kubectl port-forward  --namespace prometheus svc/prometheus-operator-grafana 800
 
 Импорт grafana-dashboard.json,что доступна по http://localhost:8000
 
-Порты в service nginx и иммитируем деятельность:
+Порты в service nginx:
 
 kubectl port-forward svc/nginx 8080:80
 

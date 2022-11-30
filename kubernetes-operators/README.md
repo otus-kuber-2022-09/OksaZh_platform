@@ -176,3 +176,9 @@ kubectl exec -it $MYSQLPOD -- mysql -potuspassword -e "select * from test;" otus
 |  1 | some data   |
 |  2 | some data-2 |
 +----+-------------+
+
+
+kubectl get jobs
+NAME                         COMPLETIONS   DURATION   AGE
+backup-mysql-instance-job    1/1           5s         5m21s
+restore-mysql-instance-job   1/1           54s        5m32s

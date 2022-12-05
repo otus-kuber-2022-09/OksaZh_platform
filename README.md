@@ -45,3 +45,4 @@ http://localhost:8000/homework.html );
 kubectl port-forward --address 0.0.0.0 pod/web 8000:8000
 
 Для проверки работы приложения перейти по ссылке http://localhost:8000/ (http://localhost:8000/index.html)
+

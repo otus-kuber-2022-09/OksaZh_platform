@@ -1,0 +1,159 @@
+stages:
+  - adservice
+  - cartservice
+  - checkoutservice
+  - currencyservice
+  - emailservice
+  - frontend
+  - loadgenerator
+  - paymentservice
+  - productcatalogservice
+  - recommendationservice
+  - shippingservice
+
+variables:
+  CI_COMMIT_TAG: v0.0.3
+ 
+ 
+adservice:
+  image: docker:latest
+  stage: adservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/adservice
+    - docker build -t "oksanazh/adservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/adservice:$CI_COMMIT_TAG"
+
+cartservice:
+  image: docker:latest
+  stage: cartservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/cartservice/src
+    - docker build -t "oksanazh/cartservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/cartservice:$CI_COMMIT_TAG"
+
+checkoutservice:
+  image: docker:latest
+  stage: checkoutservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/checkoutservice
+    - docker build -t "oksanazh/checkoutservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/checkoutservice:$CI_COMMIT_TAG"
+
+currencyservice:
+  image: docker:latest
+  stage: currencyservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/currencyservice
+    - docker build -t "oksanazh/currencyservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/currencyservice:$CI_COMMIT_TAG"
+
+emailservice:
+  image: docker:latest
+  stage: emailservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/emailservice
+    - docker build -t "oksanazh/emailservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/emailservice:$CI_COMMIT_TAG"
+
+frontend:
+  image: docker:latest
+  stage: frontend
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/frontend
+    - docker build -t "oksanazh/frontend:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/frontend:$CI_COMMIT_TAG"
+
+loadgenerator:
+  image: docker:latest
+  stage: loadgenerator
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/loadgenerator
+    - docker build -t "oksanazh/loadgenerator:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/loadgenerator:$CI_COMMIT_TAG"
+
+paymentservice:
+  image: docker:latest
+  stage: paymentservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/paymentservice
+    - docker build -t "oksanazh/paymentservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/paymentservice:$CI_COMMIT_TAG"
+
+productcatalogservice:
+  image: docker:latest
+  stage: productcatalogservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/productcatalogservice
+    - docker build -t "oksanazh/productcatalogservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/productcatalogservice:$CI_COMMIT_TAG"
+
+recommendationservice:
+  image: docker:latest
+  stage: recommendationservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/recommendationservice
+    - docker build -t "oksanazh/recommendationservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/recommendationservice:$CI_COMMIT_TAG"
+
+shippingservice:
+  image: docker:latest
+  stage: shippingservice
+  services:
+    - docker:dind
+  before_script:
+    - docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+  script:
+    - cd src/shippingservice
+    - docker build -t "oksanazh/shippingservice:$CI_COMMIT_TAG" .
+    - echo "Compile complete."
+    - docker push "oksanazh/shippingservice:$CI_COMMIT_TAG"

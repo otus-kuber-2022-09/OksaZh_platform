@@ -1,0 +1,172 @@
+<html>
+<body>
+<p>Some secrets:</p>
+<ul>
+<li><pre>username: otus</pre></li>
+<li><pre>password: asajkjkahs</pre></li>
+</ul>
+
+</body>
+</html>
+
+
+CA на базе vault
+
+pki секретс
+
+kubectl exec -it vault-0 -- vault secrets enable pki
+Success! Enabled the pki secrets engine at: pki/
+
+kubectl exec -it vault-0 -- vault secrets tune -max-lease-ttl=87600h pki
+Success! Tuned the secrets engine at: pki/
+
+
+kubectl exec -it vault-0 -- vault write -field=certificate pki/root/generate/internal
+\
+common_name="exmaple.ru" ttl=87600h > CA_cert.crt
+
+Пропишем урлы для ca и отозванных сертификатовсертификатов
+
+kubectl exec -it vault-0 -- vault write pki/config/urls \
+issuing_certificates="http://vault:8200/v1/pki/ca" \
+crl_distribution_points="http://vault:8200/v1/pki/crl"
+
+Success! Data written to: pki/config/urls
+
+Создадим промежуточный сертификат
+
+kubectl exec -it vault-0 -- vault secrets enable --path=pki_int pki
+Success! Enabled the pki secrets engine at: pki_int/
+
+kubectl exec -it vault-0 -- vault secrets tune -max-lease-ttl=87600h pki_int
+Success! Tuned the secrets engine at: pki_int/
+
+kubectl exec -it vault-0 -- vault write -format=json
+pki_int/intermediate/generate/internal \
+common_name="example.ru Intermediate Authority" | jq -r '.data.csr' >
+pki_intermediate.csr
+
+Пропишем промежуточный сертификат в
+vaultvault
+kubectl cp pki_intermediate.csr vault-0:./
+kubectl exec -it vault-0 -- vault write -format=json pki/root/sign-intermediate \
+csr=@pki_intermediate.csr \
+format=pem_bundle ttl="43800h" | jq -r '.data.certificate' > intermediate.cert.pem
+kubectl cp intermediate.cert.pem vault-0:./
+kubectl exec -it vault-0 -- vault write pki_int/intermediate/set-signed
+certificate=@intermediate.cert.pem
+
+Создадим и отзовем новые сертификаты
+
+Создадим роль для выдачи сертификатов:
+
+kubectl exec -it vault-0 -- vault write pki_int/roles/example-dot-ru allowed_domains="example.ru" allow_subdomains=true max_ttl="720h"
+Success! Data written to: pki_int/roles/example-dot-ru
+
+
+Создадим и отзовем сертификат
+
+kubectl exec -it vault-0 -- vault write pki_int/issue/example-dot-ru common_name="gitlab.example.ru" ttl="24h"
+Key                 Value
+---                 -----
+ca_chain            [-----BEGIN CERTIFICATE-----
+MIIDnDCCAoSgAwIBAgIUDuxUYhUe7OEOyz8RUzT0xQtBI+kwDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAxMKZXhtYXBsZS5ydTAeFw0yMTA5MjQxODIxNDlaFw0yNjA5
+MjMxODIyMTlaMCwxKjAoBgNVBAMTIWV4YW1wbGUucnUgSW50ZXJtZWRpYXRlIEF1
+dGhvcml0eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANV44AD4AXJx
+z8u7b7Y+LJiyyEPPm+m5EgtemrOiQDFBV6/cNK4WntUwFRxM/8CrpP/aViVoHlUb
+by9DtbacjLI7dRvVkuGZVm3+SmsdSge9tn2koTlhHDu62SbaRRK3l1u0YsaCZt7D
+56F/m//IsNJQSMSpQG+pS2mUJOFqCQosEgcPRxYWuy9S8i7wHZtVyTDNRqIMzx8/
+sEGA5Ax23P96O0siUN4azbf3+UI2B37LfvIPfO4ufr+f63oEfvUX6clrIMwqZTzA
+Oss1iu3IwVsZDymUVrlKEp1pwp22Gppxd8+1m68uZXjAnDcS7CeI5/2w3Jd56vEZ
+XSluDTBCeU8CAwEAAaOBzDCByTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUw
+AwEB/zAdBgNVHQ4EFgQU0Us447XWKp/2jjDOn6ZLQKnd79swHwYDVR0jBBgwFoAU
+XzzfSYUeH+tkDdaWZwYzs6Di3JcwNwYIKwYBBQUHAQEEKzApMCcGCCsGAQUFBzAC
+hhtodHRwOi8vdmF1bHQ6ODIwMC92MS9wa2kvY2EwLQYDVR0fBCYwJDAioCCgHoYc
+aHR0cDovL3ZhdWx0OjgyMDAvdjEvcGtpL2NybDANBgkqhkiG9w0BAQsFAAOCAQEA
+nEX3iE8LhM5rxtRoZch7iFPv9tXTj8VAB7ItVtvWX1mS2DreGUysPYBSdK4QvPOq
+v4BF3wLAnTC+0M50pw0fAMI9icjVNpNTCQBihd0QXuvW/5wKBCMVDpMknIjjNt7S
+I2nCnJ9+xTGHrTvUCW7F5z0XBOZT3zRNk1VUvjpPskfKHb2Z3ZFcIpzUOMJrRXKL
+SYIhNq5w9inWy1YIv0Zi10+2+n3Fuusz+7p71vT5BrtR1nlUUvtNpmOjokYzk4d3
+Oe6LuJBEs0E4rWlOH0WXDswdTmMNISfqyyrixk58aiUxeki/3aPEtu1JFtyYYb9P
++LNeqWapMWq8kb0pQLaz/A==
+-----END CERTIFICATE-----]
+certificate         -----BEGIN CERTIFICATE-----
+MIIDZzCCAk+gAwIBAgIUdbJDO03HgpbbihwWKPlLR4y5Qu0wDQYJKoZIhvcNAQEL
+BQAwLDEqMCgGA1UEAxMhZXhhbXBsZS5ydSBJbnRlcm1lZGlhdGUgQXV0aG9yaXR5
+MB4XDTIxMDkyNDE4MjgxOFoXDTIxMDkyNTE4Mjg0OFowHDEaMBgGA1UEAxMRZ2l0
+bGFiLmV4YW1wbGUucnUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDQ
+EqXbfAia6LT7FQ/8tzVtsZXAFN+Jd2b/0StnsgfibibVZG1A6bY6Nit9Oep3Pxa7
+h1Du7ijoYnYeW7MjqVrRPvGVkjG92wM5O3QMy+Dafr/3L0jOA2rxpqZM9aFK1bn0
+dAclVXPePSOuRT0xyZW3nB15jXBLO2w/xPikont26ZTTwS+jdPDkNJKxyLSMBMXx
+SpolnEPoiIHpaDyQtCv1ukZLd+2hcYLr9yVkBxbV6IA5HbbQ/QDD1GcA9Shunk/K
+1ElGOtSD6Gqt6TzBRwgRKwh9rw6aTXWUJaKahQbYT5lQXShj/AWMuaj6qxpXdDQF
+Mj8JRTdTfve/H2mHUEedAgMBAAGjgZAwgY0wDgYDVR0PAQH/BAQDAgOoMB0GA1Ud
+JQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNVHQ4EFgQUVL3E+9kYx7FLX8U8
+U3HyqrGcigkwHwYDVR0jBBgwFoAU0Us447XWKp/2jjDOn6ZLQKnd79swHAYDVR0R
+BBUwE4IRZ2l0bGFiLmV4YW1wbGUucnUwDQYJKoZIhvcNAQELBQADggEBAIQ6DuBi
+7u9zf1Ldl+ffVafAFnSHgkMzDy5YIlJBu/kgq5xHVR7sTOoj/6oveEdIjG6YxWnZ
+g9C/8qAZL+8XAIkA2XPk0eUDYkOTzvp9H0ahh4Qw+vJPlfvkV8BW/vCBFPCcN6DM
+3oruYfos8nTGoODQMIMTy6EUWBKpE8/sxvkH1lKqw5k14bGIJ9WLmafiOr5Njl4W
+A+fQ1t/Jp8czwfznECaWL+RO7YzCAm5SPcrkmlh1Wyxj8qAq/5GHiLggAkgz9Yxd
+XcYtqGKhB/S7ll0wofDysZ9Zds9VICSENMKaz6o+IpKC+jDfLGi/U6Ja0bhWoEya
+6juzS8b93vBDV9A=
+-----END CERTIFICATE-----
+expiration          1632594528
+issuing_ca          -----BEGIN CERTIFICATE-----
+MIIDnDCCAoSgAwIBAgIUDuxUYhUe7OEOyz8RUzT0xQtBI+kwDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAxMKZXhtYXBsZS5ydTAeFw0yMTA5MjQxODIxNDlaFw0yNjA5
+MjMxODIyMTlaMCwxKjAoBgNVBAMTIWV4YW1wbGUucnUgSW50ZXJtZWRpYXRlIEF1
+dGhvcml0eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANV44AD4AXJx
+z8u7b7Y+LJiyyEPPm+m5EgtemrOiQDFBV6/cNK4WntUwFRxM/8CrpP/aViVoHlUb
+by9DtbacjLI7dRvVkuGZVm3+SmsdSge9tn2koTlhHDu62SbaRRK3l1u0YsaCZt7D
+56F/m//IsNJQSMSpQG+pS2mUJOFqCQosEgcPRxYWuy9S8i7wHZtVyTDNRqIMzx8/
+sEGA5Ax23P96O0siUN4azbf3+UI2B37LfvIPfO4ufr+f63oEfvUX6clrIMwqZTzA
+Oss1iu3IwVsZDymUVrlKEp1pwp22Gppxd8+1m68uZXjAnDcS7CeI5/2w3Jd56vEZ
+XSluDTBCeU8CAwEAAaOBzDCByTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUw
+AwEB/zAdBgNVHQ4EFgQU0Us447XWKp/2jjDOn6ZLQKnd79swHwYDVR0jBBgwFoAU
+XzzfSYUeH+tkDdaWZwYzs6Di3JcwNwYIKwYBBQUHAQEEKzApMCcGCCsGAQUFBzAC
+hhtodHRwOi8vdmF1bHQ6ODIwMC92MS9wa2kvY2EwLQYDVR0fBCYwJDAioCCgHoYc
+aHR0cDovL3ZhdWx0OjgyMDAvdjEvcGtpL2NybDANBgkqhkiG9w0BAQsFAAOCAQEA
+nEX3iE8LhM5rxtRoZch7iFPv9tXTj8VAB7ItVtvWX1mS2DreGUysPYBSdK4QvPOq
+v4BF3wLAnTC+0M50pw0fAMI9icjVNpNTCQBihd0QXuvW/5wKBCMVDpMknIjjNt7S
+I2nCnJ9+xTGHrTvUCW7F5z0XBOZT3zRNk1VUvjpPskfKHb2Z3ZFcIpzUOMJrRXKL
+SYIhNq5w9inWy1YIv0Zi10+2+n3Fuusz+7p71vT5BrtR1nlUUvtNpmOjokYzk4d3
+Oe6LuJBEs0E4rWlOH0WXDswdTmMNISfqyyrixk58aiUxeki/3aPEtu1JFtyYYb9P
++LNeqWapMWq8kb0pQLaz/A==
+-----END CERTIFICATE-----
+private_key         -----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEA0BKl23wImui0+xUP/Lc1bbGVwBTfiXdm/9ErZ7IH4m4m1WRt
+QOm2OjYrfTnqdz8Wu4dQ7u4o6GJ2HluzI6la0T7xlZIxvdsDOTt0DMvg2n6/9y9I
+zgNq8aamTPWhStW59HQHJVVz3j0jrkU9McmVt5wdeY1wSztsP8T4pKJ7dumU08Ev
+o3Tw5DSSsci0jATF8UqaJZxD6IiB6Wg8kLQr9bpGS3ftoXGC6/clZAcW1eiAOR22
+0P0Aw9RnAPUobp5PytRJRjrUg+hqrek8wUcIESsIfa8Omk11lCWimoUG2E+ZUF0o
+Y/wFjLmo+qsaV3Q0BTI/CUU3U373vx9ph1BHnQIDAQABAoIBAQCdk4HIFsbtig6F
+mA3jdVwhFrwyG5yunp6CXgZhIZKXCJSgRs32uwgmTZ/h1lqatEyi+Hdyeyq/0tFh
+bFDeUQNWNDUA8RZ6kcJ/NWdNyZkf353BtS2N10jGeU64Oc1Mv090seo3e9+kDulW
+sVkGu4OG6dPomhTQ5M+1+5XSGLsn8Z/ZKqrKPS2TVJcILVX3NgtVP4d2Qf4yhenF
+n0VZv2fJ7rtaJxqjU5co/HHnTfCIqXd7hRw9o/VblmPv84x75OfBr1LBInwYUrqS
++PKT/4wxc5oGFFN68d2L4rVvQMm26IvTCdjgboLBbRrVOBivb+SXOokSYTsVPc7q
+ir6GEEQBAoGBAN7FQgoGs9PgIcIOxvRAq82Gbuo7GJMuRZb5Lf8LOcL45MMgEDCL
+OHze+T7rbrpgd8WX2dNkrtJ8Aem5prmA7ZneNp6g/agDm6TmdnVUndNeDZy/1Iao
+461+pJgGpJsveA3qM3cEHiH2yqZvbdw2JXkGnboVbGPJVxix92WrprpFAoGBAO8c
+JFir5fZ5FhAI0rhZJnNTMwSkUT49IO+AG9BKh3EG84ZswRdRZ262kSfQPXVD9HEn
+oyrgqwI2mI693BGXxaddjzOOWhKdRehpRDR1ev1RkY9tEVzI8nxV38alwMQr92LR
+gHNCx2zUPhcp7J/Nvt1KA8PFlBgWKKzU58MR45l5AoGAD2UQYEMAUGcPzipZQ23o
+sYZVyegVla4/7uP/cr2i2z96B6YCmGg2miKKlPeOKmEaRdRtoDc4AaHCPBWxWOZ5
+BQYfPi0f+mltayLmEsurMH0ycZ+sHzYyrb2vwDXNUFAiesuxjMsDDhPRA1l1/R7c
+zhVP9xkd6XNzimhaEXOgTQUCgYEA4NCx79k376TrtInHLmNL/rSkTGH+rSkmdWkb
+PZ1FeWUSxTot1rHIMVVgZ3Goxz/sbhPZm2//+aXBjLxAVR5BTdpu0Qev8r6Cw0Fu
+SnCHAfSWiqb+4yFgtLy9GPYxp4C7KeNXBYgtH0rzUi4t+BantUJpBcIYOwlilxXb
+DxMbzukCgYEAkYQOeh0wHfZO/dRG2OHB6RwkEMg5ZiK8N3KpNB+VMVLBnWogpW6c
+iWl8uRDDE7ef3uWHdGRkA7mrWAPYkhBoCp80WFkfOJSReoovJGjF+Bd3vO/hRwFC
+pnPqo55LRHKKCmYqJbgi4pHRmvkiAS0Cu+BQ/wNGtjA7G5mIRJY4fIo=
+-----END RSA PRIVATE KEY-----
+private_key_type    rsa
+serial_number       75:b2:43:3b:4d:c7:82:96:db:8a:1c:16:28:f9:4b:47:8c:b9:42:ed
+
+kubectl exec -it vault-0 -- vault write pki_int/revoke serial_number="75:b2:43:3b:4d:c7:82:96:db:8a:1c:16:28:f9:4b:47:8c:b9:42:ed"
+Key                        Value
+---                        -----
+revocation_time            1632508156
+revocation_time_rfc3339    2022-12-21T18:29:16.892443241Z

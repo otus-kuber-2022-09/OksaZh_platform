@@ -4,7 +4,7 @@ metadata:
   name: storage-pod
 spec:
   containers:
-    - name: app
+    - name: bash
       image: busybox
       volumeMounts:
       - mountPath: "/data"

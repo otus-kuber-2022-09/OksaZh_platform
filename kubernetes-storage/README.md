@@ -47,7 +47,7 @@ Namespace:        default
 Priority:         0
 Service Account:  default
 Node:             minikube/172.23.189.203
-Start Time:       Fri, 03 Mar 2023 12:04:38 +0300
+Start Time:       Mon, 03 Mar 2023 12:04:38 +0300
 Labels:           <none>
 Annotations:      <none>
 Status:           Running
@@ -65,7 +65,7 @@ Containers:
       sleep
       1000000
     State:          Running
-      Started:      Fri, 03 Mar 2023 12:04:49 +0300
+      Started:      Mon, 03 Mar 2023 12:04:49 +0300
     Ready:          True
     Restart Count:  0
     Environment:    <none>
@@ -172,7 +172,7 @@ Namespace:        default
 Priority:         0
 Service Account:  default
 Node:             minikube/172.23.189.203
-Start Time:       Fri, 03 Mar 2023 12:42:10 +0300
+Start Time:       Mon, 03 Mar 2023 12:42:10 +0300
 Labels:           <none>
 Annotations:      <none>
 Status:           Running
@@ -190,7 +190,7 @@ Containers:
       sleep
       1000000
     State:          Running
-      Started:      Fri, 03 Mar 2023 12:42:16 +0300
+      Started:      Mon, 03 Mar 2023 12:42:16 +0300
     Ready:          True
     Restart Count:  0
     Environment:    <none>
